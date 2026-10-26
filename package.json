@@ -1,0 +1,23 @@
+{
+  "name": "aviones-luna",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aviones Luna: app Android (Capacitor) para fotografiar un avión por delante de la Luna o del Sol",
+  "scripts": {
+    "build:www": "node scripts/build-www.mjs",
+    "android:prepare": "node scripts/build-www.mjs && npx cap add android && node scripts/prepare-android.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/filesystem": "8.1.4",
+    "@capacitor/geolocation": "8.2.3",
+    "@capacitor/share": "8.0.3",
+    "@capacitor/status-bar": "8.0.4",
+    "astronomy-engine": "2.1.19"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

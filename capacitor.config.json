@@ -1,0 +1,19 @@
+{
+  "appId": "com.iamarketers.avionesluna",
+  "appName": "Aviones Luna",
+  "webDir": "www",
+  "backgroundColor": "#0a101c",
+  "android": {
+    "backgroundColor": "#0a101c"
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0a101c",
+      "overlaysWebView": false
+    }
+  }
+}
