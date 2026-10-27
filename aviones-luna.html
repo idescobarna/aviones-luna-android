@@ -1914,7 +1914,7 @@ function aenaTime(d,h){if(!d||!h||d.length<8)return null;const D=+d.slice(0,2),M
 async function schLoad(){
   const key=APK+':'+Math.floor(Date.now()/(20*60e3));if(SCH.key===key&&SCH.data)return;
   SCH.key=key;SCH.data=null;SCH.err=null;
-  try{const j=await getJSON(`https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=${AENA_CODE[APK]}&flightType=L&dosDias=si`,{timeout:60000});
+  try{const j=await getJSON(`https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=${AENA_CODE[APK]}&flightType=L&dosDias=si&_=${Date.now()}`,{timeout:60000});
     const seen=new Set(),out=[];
     for(const f of j){const ts=aenaTime(f.fecha,f.horaProgramada);if(!ts)continue;const te=aenaTime(f.fechaEstimada,f.horaEstimada)||ts;
       const k=[f.fecha,f.horaProgramada,f.iataOtro,f.tipoAeronave].join('|');if(seen.has(k))continue;seen.add(k);
