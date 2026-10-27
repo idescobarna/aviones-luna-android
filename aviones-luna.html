@@ -6,7 +6,7 @@
 <title>Tránsitos lunares El Prat</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>/* required styles */
 
 .leaflet-pane,
@@ -778,9 +778,29 @@ td a{color:var(--moon)}
 .cleg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;color:var(--dim);margin-top:6px}
 .cleg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 .cleg i.tri{width:0;height:0;border-radius:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid var(--amber)}
+#alertBar{position:fixed;left:0;right:0;bottom:0;z-index:2000;display:flex;align-items:center;gap:14px;background:#1d2b18;border-top:2px solid var(--ok);color:var(--ink);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));box-shadow:0 -6px 20px #0008}
+#alertBar.now{background:#5b4a12;border-top-color:var(--amber)}
+#alertBar .acount{font-family:var(--f-mono);font-size:30px;font-weight:500;min-width:96px;color:var(--moon)}
+#alertBar .atext{display:flex;flex-direction:column;min-width:0;flex:1}#alertBar .atext span{color:var(--dim);font-size:12.5px}
+#alertBar button{background:none;border:none;color:var(--dim);font-size:18px}
+.alrow,.calrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:8px 0}
+.calrow{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.calrow .simtxt{flex-basis:100%;margin:0}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px}
+button.mini{padding:3px 9px;font-size:12px}
+.chip.sch{white-space:normal}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
+.fbig{display:flex;align-items:center;gap:12px;background:var(--panel2);border-radius:6px;padding:10px}
+.farrow{font-size:38px;line-height:1;color:var(--ok);transition:transform .2s;display:inline-block}
+.farrow.moon{color:var(--moon);font-size:26px}
+.fdist{font-family:var(--f-mono);font-size:28px;font-weight:500}
+#camWrap{position:relative;margin-top:10px;border-radius:6px;overflow:hidden;background:#000;aspect-ratio:3/4;max-height:70vh;max-width:100%}
+#camWrap video,#camWrap canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+@media (prefers-reduced-motion:reduce){.farrow{transition:none}}
 .warn{background:#3a2a10;border:1px solid #7a5a20;color:#ffd9a0;border-radius:5px;padding:8px 10px;font-size:12.5px;margin:0 0 10px}
 .icsrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
-.wx{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.wx,.wx2{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .chip.wx-good{color:#10131c;background:var(--ok);border:none}.chip.wx-mid{color:#10131c;background:var(--warn);border:none}.chip.wx-bad{color:#10131c;background:var(--bad);border:none}
 .cam{margin-top:8px;padding:8px 10px;background:var(--panel2);border-radius:5px;font-size:13px}
 .cam .k{font-family:var(--f-display);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-right:6px}
@@ -794,6 +814,7 @@ select:disabled{opacity:.45}
 </head>
 <body>
 
+<div id="alertBar" hidden role="alert"><div class="acount" id="alertCount">0:00</div><div class="atext"><b id="alertLabel"></b><span id="alertDetail"></span></div><button id="alertClose" aria-label="Cerrar aviso">✕</button></div>
 <div class="wrap">
   <header class="top">
     <div>
@@ -817,6 +838,8 @@ select:disabled{opacity:.45}
         </div>
         <div class="warn" id="sunWarn" hidden>⚠ Nunca mires el Sol por el visor ni lo fotografíes sin filtro solar certificado (lámina tipo Baader ND 5.0 o ISO 12312-2) bien sujeto delante del objetivo. Sin él dañas la vista y el sensor.</div>
         <div class="ops" id="ops"></div>
+        <div class="calrow"><label class="chk"><input type="checkbox" id="calUse" checked> Usar trayectorias reales</label><button class="mini" id="calReset">Borrar medidas</button>
+          <p class="simtxt" id="calInfo"></p><p class="simtxt" style="margin-top:2px">Mientras «Aviones en directo» está activado, la app mide las aproximaciones reales (altura, desvío lateral y velocidad) y las usa en el cálculo en cuanto hay al menos 3 aterrizajes por tramo.</p></div>
         <div class="row">
           <label>Avión
             <select id="plane">
@@ -933,7 +956,28 @@ select:disabled{opacity:.45}
       <div class="panel" id="liveBox">
         <div class="hzhead"><p class="lbl" style="margin:0">Aviones en directo</p><div style="display:flex;gap:8px;align-items:center"><span class="summary" id="liveSt" style="margin:0"></span><button id="liveBtn">Activar</button></div></div>
         <p class="simtxt" style="margin-top:0">Lee los aviones reales cerca del aeropuerto (ADS-B) y calcula cuándo pasa cada uno por tu punto de cruce y si coincidirá con el disco.</p>
+        <div class="alrow"><label class="chk"><input type="checkbox" id="alSound" checked> Sonido</label><label class="chk"><input type="checkbox" id="alVib" checked> Vibración</label><button class="mini" id="alTest">Probar aviso</button>
+          <span class="simtxt" style="margin:0">Pita a 60, 30 y 10 s y cuenta atrás cuando un avión va a cruzar el disco desde tu punto (tu GPS si lo tienes activo).</span></div>
         <div class="list" id="liveList"></div>
+      </div>
+      <div class="panel" id="cruBox">
+        <div class="hzhead" style="margin-top:0"><p class="lbl" style="margin:0">Aviones en crucero</p><div style="display:flex;gap:8px;align-items:center"><span class="summary" id="cruSt" style="margin:0"></span><button id="cruBtn">Activar</button></div></div>
+        <p class="simtxt" style="margin-top:0">Aviones en ruta a 8–12 km de altura que pasarán por delante de la <span class="tn">Luna</span> en los próximos 10 minutos vistos desde tu punto, en cualquier lugar. Te dice cuánto y hacia dónde moverte para quedar dentro de la franja, y avisa con sonido.</p>
+        <label class="chk"><input type="checkbox" id="cruGps" checked> Seguir mi posición con el GPS</label>
+        <div class="list" id="cruList"></div>
+      </div>
+      <div class="panel" id="fieldBox">
+        <div class="hzhead" style="margin-top:0"><p class="lbl" style="margin:0">Modo campo</p><div style="display:flex;gap:8px"><button id="fieldBest" class="mini">Mejor punto ahora</button><button id="fieldBtn" class="primary">Iniciar</button></div></div>
+        <p class="simtxt" style="margin-top:0">Te guía con el GPS y la brújula hasta el punto elegido. Destino: <b id="fieldDest">sin elegir</b></p>
+        <div id="fieldView" hidden>
+          <div class="fgrid">
+            <div class="fbig"><div class="farrow" id="fArrow">➤</div><div><div class="fdist" id="fDist">—</div><div class="simtxt" id="fAcc" style="margin:0"></div></div></div>
+            <div class="fbig"><div class="farrow moon" id="fMoonArrow">●</div><div class="simtxt" id="fMoon" style="margin:0"></div></div>
+          </div>
+          <p class="simtxt" id="fInfo"></p>
+          <button id="camBtn">Cámara con la Luna</button>
+          <div id="camWrap" hidden><video id="camVideo" playsinline muted></video><canvas id="camCv"></canvas></div>
+        </div>
       </div>
       <div class="panel" id="routeBox" hidden>
         <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><p class="lbl" id="routeTitle" style="margin:0">Ruta</p><button id="kml" hidden>Descargar KML para Google Earth</button></div><p class="summary" id="kmlMsg" style="margin:0 0 8px"></p>
@@ -952,6 +996,12 @@ select:disabled{opacity:.45}
   </section>
 </div>
 
+<script>
+window.APP_VERSION='web';
+(function(){function show(m){try{var b=document.getElementById('bootErr');if(!b){b=document.createElement('div');b.id='bootErr';b.style.cssText='position:fixed;left:0;right:0;top:0;z-index:99999;background:#6b1d1d;color:#fff;font:12px/1.45 monospace;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;max-height:45vh;overflow:auto;white-space:pre-wrap';(document.body||document.documentElement).appendChild(b);b.textContent='Aviones Luna '+window.APP_VERSION+' · error al arrancar (haz una captura y envíasela a Carlos):\n';}b.textContent+='\n• '+m;}catch(e){}}
+window.addEventListener('error',function(e){show((e.message||'error')+(e.filename?' ['+String(e.filename).split('/').pop()+':'+e.lineno+':'+e.colno+']':''));});
+window.addEventListener('unhandledrejection',function(e){var r=e.reason;show('promesa: '+(r&&r.message?r.message:String(r)));});})();
+</script>
 <script>/* @preserve
  * Leaflet 1.9.4, a JS library for interactive maps. https://leafletjs.com
  * (c) 2010-2023 Vladimir Agafonkin, (c) 2010-2011 CloudMade
@@ -967,6 +1017,7 @@ const xy=(lat,lon)=>[(lon-LON0)*KX,(lat-LAT0)*KY];
 const ll=(x,y)=>[LAT0+y/KY,LON0+x/KX];
 const RE=6371000,KREF=0.13,GS=3*D2R,AU_KM=149597870.7;
 const TZ='Europe/Madrid';
+let CALHOOK=null; // trayectorias reales (calibración); null = senda ideal
 
 function rwy(a,b){const A=xy(ENDS[a][0],ENDS[a][1]),B=xy(ENDS[b][0],ENDS[b][1]);const L=Math.hypot(B[0]-A[0],B[1]-A[1]);return{a,b,A,B,L,u:[(B[0]-A[0])/L,(B[1]-A[1])/L]};}
 const neg=v=>[-v[0],-v[1]];
@@ -975,9 +1026,10 @@ let ENDS={},AP=null,APK='BCN',TARGET='moon';const RW={},OPS=[];
 
 function pathAt(op,s){
   if(op.kind==='arr'){
-    const x=op.thr[0]-s*op.u[0],y=op.thr[1]-s*op.u[1];
-    const z=op.elev+15+s*Math.tan(GS);
-    const v=72+Math.min(s,16000)/16000*30;
+    let x=op.thr[0]-s*op.u[0],y=op.thr[1]-s*op.u[1];
+    let z=op.elev+15+s*Math.tan(GS);
+    let v=72+Math.min(s,16000)/16000*30;
+    if(CALHOOK){const k=CALHOOK(op,s);if(k){z=Math.max(op.elev+5,k.h);x+=-op.u[1]*k.c;y+=op.u[0]*k.c;if(k.v>40&&k.v<160)v=k.v;}}
     return{x,y,z,vx:v*op.u[0],vy:v*op.u[1],vz:-v*Math.tan(GS)};
   }
   const d=1700+s;const x=op.start[0]+d*op.u[0],y=op.start[1]+d*op.u[1];
@@ -1289,7 +1341,7 @@ window.recoGo=(d,mo,h,mi,la,lo)=>{setTime(madridToMs(2026,mo,d,h,mi));map.setVie
 for(const r of RECO){
   const rows=r.ev.map(e=>{const[d,mo]=e.fecha.split('/').map(Number);const[h,mi]=e.centro.split(':').map(Number);
     return `<tr><td><b>${e.fecha}</b></td><td>${e.centro}</td><td>${e.desde}–${e.hasta}</td><td>${e.ill} %</td><td>${e.r}</td><td>${e.tr} s</td><td><a href="#" onclick="recoGo(${d},${mo},${h},${mi},${r.la},${r.lo});return false">ver</a></td></tr>`;}).join('');
-  const html=`<b>${r.name}</b><br>${r.la.toFixed(4)}, ${r.lo.toFixed(4)} · <a href="https://www.google.com/maps/search/?api=1&query=${r.la},${r.lo}" target="_blank" rel="noopener">Google Maps</a><table style="margin-top:6px;font-size:12px;border-collapse:collapse"><tr><th>Día</th><th>Centro</th><th>Ventana</th><th>Luna</th><th>Avión/${TN()}</th><th>Cruce</th><th></th></tr>${rows}</table><div style="margin-top:6px;font-size:11px;color:#555">Comprueba en satélite que el sitio es accesible y que el horizonte ENE está despejado.</div>`;
+  const html=`<b>${r.name}</b><br>${r.la.toFixed(4)}, ${r.lo.toFixed(4)} · <a href="https://www.google.com/maps/search/?api=1&query=${r.la},${r.lo}" target="_blank" rel="noopener">Google Maps</a> · <a href="#" data-go="${r.la},${r.lo}" data-label="${r.name}">Llévame aquí</a><table style="margin-top:6px;font-size:12px;border-collapse:collapse"><tr><th>Día</th><th>Centro</th><th>Ventana</th><th>Luna</th><th>Avión/${TN()}</th><th>Cruce</th><th></th></tr>${rows}</table><div style="margin-top:6px;font-size:11px;color:#555">Comprueba en satélite que el sitio es accesible y que el horizonte ENE está despejado.</div>`;
   L.marker([r.la,r.lo],{icon:L.divIcon({className:'',html:`<div style="width:26px;height:26px;border-radius:50%;background:#ffb547;color:#1b1305;font:700 14px/26px var(--f-display);text-align:center;border:2px solid #fff;box-shadow:0 1px 5px #000a">${r.k}</div>`,iconSize:[26,26],iconAnchor:[13,13]})}).bindPopup(html,{maxWidth:420}).addTo(gReco);
 }
 const myIcon=L.divIcon({className:'',html:'<div class="mypt"></div>',iconSize:[22,22],iconAnchor:[11,11]});
@@ -1318,7 +1370,7 @@ function drawAll(){
     if(L_.best){const b=L_.best,np=nearPlace(b.ox,b.oy);const P=pathAt(op,b.s);
       L.polyline([P2(b.ox,b.oy),P2(P.x,P.y)],{color:'#efe7c8',weight:1.5,dashArray:'3 5'}).addTo(gLive);
       L.circleMarker(P2(P.x,P.y),{radius:4,color:'#efe7c8',fillColor:'#efe7c8',fillOpacity:1}).bindTooltip(`Avión a ${Math.round(b.h)} m`).addTo(gLive);
-      L.circleMarker(P2(b.ox,b.oy),{radius:9,color:op.col,weight:3,fillColor:'#efe7c8',fillOpacity:.9}).bindPopup(`<b>Mejor punto · ${op.name} · ${hm(t)}</b><br>Mira hacia ${fmt(m.az)}° ${azName(m.az)}, ${fmt(m.alt,1)}° de altura<br>Avión a ${Math.round(b.h)} m, a ${fmt(b.D/1000,1)} km<br>Avión/${TN()} ${fmt(b.ratio,2)} · cruce ${trs(b.transit)}<br>${coord(b.ox,b.oy)}<br><a href="${gmaps(b.ox,b.oy)}" target="_blank" rel="noopener">Abrir en Google Maps</a>`).addTo(gLive);
+      L.circleMarker(P2(b.ox,b.oy),{radius:9,color:op.col,weight:3,fillColor:'#efe7c8',fillOpacity:.9}).bindPopup(`<b>Mejor punto · ${op.name} · ${hm(t)}</b><br>Mira hacia ${fmt(m.az)}° ${azName(m.az)}, ${fmt(m.alt,1)}° de altura<br>Avión a ${Math.round(b.h)} m, a ${fmt(b.D/1000,1)} km<br>Avión/${TN()} ${fmt(b.ratio,2)} · cruce ${trs(b.transit)}<br>${coord(b.ox,b.oy)}<br><a href="${gmaps(b.ox,b.oy)}" target="_blank" rel="noopener">Abrir en Google Maps</a> · <a href="#" data-go="${ll(b.ox,b.oy).join(',')}" data-label="Mejor punto · ${op.name} · ${hm(t)}">Llévame aquí</a>`).addTo(gLive);
       live.push(`<div class="liveop" style="--c:${op.col}"><span class="n">${op.name}</span>${act} · <a href="${gmaps(b.ox,b.oy)}" target="_blank" rel="noopener" style="color:var(--moon)">${coord(b.ox,b.oy)}</a> <span class="x">${near(b.ox,b.oy)} · avión a ${fmt(b.h)} m · ${fmt(b.D/1000,1)} km · avión/${TN()} ${fmt(b.ratio,2)} · cruce ${trs(b.transit)}</span></div>`);}
     else live.push(`<div class="liveop" style="--c:${op.col}"><span class="n">${op.name}</span>${act} <span class="x">· el lugar de observación cae en el mar, en zona restringida o demasiado lejos</span></div>`);
   }
@@ -1470,7 +1522,7 @@ function simInit(){
 simInit();
 
 /* ===== Utilidades de red y archivos ===== */
-async function getJSON(url,opt){const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);try{const r=await fetch(url,{...(opt||{}),signal:ctl.signal});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}finally{clearTimeout(to);}}
+async function getJSON(url,opt){const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);try{const r=await fetch(typeof proxify==='function'?proxify(url):url,{...(opt||{}),signal:ctl.signal});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}finally{clearTimeout(to);}}
 async function saveFile(name,mime,text){
   try{const dl=await window.claude?.use?.('downloads');if(dl){await dl.save({filename:name,data:new Blob([text],{type:mime})});return true;}}catch(e){}
   try{const u=URL.createObjectURL(new Blob([text],{type:mime}));const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);return true;}catch(e){return false;}
@@ -1615,8 +1667,11 @@ function liveAnalyze(){
       const dx=p[0]-op.thr[0],dy=p[1]-op.thr[1];const s=-(dx*op.u[0]+dy*op.u[1]);const cross=Math.abs(dx*op.u[1]-dy*op.u[0]);
       const dtr=Math.abs(((a.track??op.hdg)-op.hdg+540)%360-180);
       if(s<300||s>45000||cross>3000||dtr>40)continue;
-      // punto de cruce: el de la simulación si es esta operación; si no, el mejor punto de ahora
-      let s0,O,hO;if(SIM.info&&!SIM.info.err&&SIM.info.op.id===op.id){s0=SIM.info.s0;O=SIM.info.O;hO=SIM.info.hO;}
+      if(typeof calRecord==='function'&&cross<600&&dtr<25)calRecord(a,op,s,dx*(-op.u[1])+dy*op.u[0]);
+      // punto de cruce: tu posición GPS si es reciente; si no, el de la simulación o el mejor punto de ahora
+      let s0,O,hO;
+      if(typeof gpsFresh==='function'&&gpsFresh()){const mm=moonAt(now);if(mm.alt<0.5)continue;s0=angTo(op,myPt,myH,mm,true).s;O=myPt;hO=myH;}
+      else if(SIM.info&&!SIM.info.err&&SIM.info.op.id===op.id){s0=SIM.info.s0;O=SIM.info.O;hO=SIM.info.hO;}
       else{const m=moonAt(now);if(m.alt<0.5)continue;const b=locus(op,m,o.hO,o.len,250).best;if(!b)continue;s0=b.s;O=[b.ox,b.oy];hO=o.hO;}
       const eta=(s-s0)/gs;if(eta<-20)continue;const te=now+eta*1000;const m=moonAt(te);
       const r=m.alt>0.3?angTo(op,O,hO,m,true):{ang:99,s:s0};const len=TYPELEN[(a.t||'').toUpperCase()]||37.6;const det=detailAt(op,r.s,O,hO,m,len);
@@ -1636,7 +1691,7 @@ function liveRender(){
 async function liveTick(){if(!LIVE.on)return;const ok=await liveFetch();
   if(!ok){$('liveSt').textContent='';$('liveList').innerHTML=`<div class="empty">No se han podido leer los datos ADS-B. ${NETMSG}</div>`;}
   else{if(Math.abs(curT()-Date.now())<10*60e3)setTime(Date.now());liveRender();}
-  LIVE.timer=setTimeout(liveTick,8000);}
+  LIVE.timer=setTimeout(liveTick,LIVE.fast?4000:8000);}
 $('liveBtn').onclick=()=>{LIVE.on=!LIVE.on;$('liveBtn').textContent=LIVE.on?'Desactivar':'Activar';clearTimeout(LIVE.timer);
   if(LIVE.on){setTime(Date.now());$('liveList').innerHTML='<div class="empty">Conectando…</div>';liveTick();}else{$('liveList').innerHTML='';$('liveSt').textContent='';if(typeof L_ACLAYER!=='undefined')L_ACLAYER.clearLayers();}};
 
@@ -1739,6 +1794,308 @@ if(NATIVE){
   document.documentElement.classList.add('native');
   try{CP.StatusBar&&CP.StatusBar.setBackgroundColor({color:'#0a101c'});}catch(e){}
 }
+
+// medidas reales del 27/10/2026 (ADS-B, llegadas 24R de El Prat): [n.º aviones, suma desvío lateral m, suma altura m, suma velocidad m/s] por km
+const SEED_CAL={"BCN":{"A24R":{"0":[4,-11,246,286],"1":[4,-1,410,291],"2":[5,-9,718,356],"3":[8,-18,1650,540],"4":[6,-12,1572,411],"5":[4,-18,1255,276],"6":[7,-50,2561,487],"7":[5,-39,2055,356],"8":[3,-9,1397,227],"9":[4,5,2101,326],"10":[7,24,4141,575],"11":[4,17,2524,348],"12":[7,15,4813,606],"13":[5,10,3707,425],"14":[5,22,3773,425],"15":[6,41,4529,518],"16":[3,25,2403,272],"17":[3,175,2403,267],"18":[3,91,2222,293],"19":[6,302,4998,585],"20":[4,159,3265,397],"21":[5,82,4229,477]}}};
+
+/* ===================== v2 ===================== */
+/* ---- Red: proxy en la web de Render; en el APK, peticiones nativas (CapacitorHttp) ---- */
+const PROXY_HOSTS={'api.adsb.lol':'adsb','api.airplanes.live':'apl','www.aena.es':'aena'};
+function proxify(u){
+  if(NATIVE)return u;
+  if(!/(^|\.)onrender\.com$/.test(location.hostname)&&location.hostname!=='localhost')return u;
+  try{const x=new URL(u);const k=PROXY_HOSTS[x.host];return k?`/px/${k}${x.pathname}${x.search}`:u;}catch(e){return u;}
+}
+let wakeLock=null;
+async function keepAwake(on){
+  try{if(on&&!wakeLock&&navigator.wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null;});}
+    if(!on&&wakeLock&&!LIVE.on&&!CRU.on&&!FIELD.on){await wakeLock.release();wakeLock=null;}}catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&(LIVE.on||CRU.on||FIELD.on))keepAwake(true);});
+
+/* ---- Posición del usuario (GPS continuo) ---- */
+const GEO={watch:null,last:null,t:0,users:new Set()};
+function geoStart(who){
+  GEO.users.add(who);if(GEO.watch!==null)return;
+  const onPos=c=>{if(!c)return;GEO.last=c;GEO.t=Date.now();
+    myPt=xy(c.latitude,c.longitude);if(typeof c.altitude==='number'&&isFinite(c.altitude))myH=Math.round(c.altitude);
+    $('plat').value=c.latitude.toFixed(5);$('plon').value=c.longitude.toFixed(5);$('phgt').value=myH;
+    if(typeof myMarker!=='undefined')myMarker.setLatLng([c.latitude,c.longitude]);
+    if(FIELD.on)fieldRender();};
+  if(NATIVE&&CP.Geolocation){CP.Geolocation.requestPermissions().catch(()=>{}).then(()=>CP.Geolocation.watchPosition({enableHighAccuracy:true,timeout:20000,maximumAge:3000},(p,err)=>{if(p)onPos(p.coords);})).then(id=>{GEO.watch=id;}).catch(()=>{});GEO.watch='pending';}
+  else if(navigator.geolocation){GEO.watch=navigator.geolocation.watchPosition(p=>onPos(p.coords),()=>{},{enableHighAccuracy:true,maximumAge:3000,timeout:20000});}
+}
+function geoStop(who){
+  GEO.users.delete(who);if(GEO.users.size||GEO.watch===null)return;
+  try{if(NATIVE&&CP.Geolocation){if(GEO.watch!=='pending')CP.Geolocation.clearWatch({id:GEO.watch});}else navigator.geolocation.clearWatch(GEO.watch);}catch(e){}
+  GEO.watch=null;
+}
+const gpsFresh=()=>GEO.last&&Date.now()-GEO.t<15*60e3;
+
+/* ---- 1 · Avisos con sonido y vibración ---- */
+const ALR={ctx:null,done:new Map(),timers:[],cur:null,tick:null};
+function audioUnlock(){try{ALR.ctx=ALR.ctx||new (window.AudioContext||window.webkitAudioContext)();if(ALR.ctx.state==='suspended')ALR.ctx.resume();}catch(e){}}
+['click','touchstart'].forEach(ev=>document.addEventListener(ev,audioUnlock,{passive:true}));
+function beep(n=1,f=1000,d=.12,gap=.1){
+  if(!$('alSound').checked)return;audioUnlock();const c=ALR.ctx;if(!c)return;let t=c.currentTime+.02;
+  for(let i=0;i<n;i++){const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.6,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+.03);t+=d+gap;}
+}
+function buzz(p){if(!$('alVib').checked)return;try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}}
+function alertEvent(key,te,label,detail){
+  const dt=(te-Date.now())/1000;if(dt<-6||dt>100)return;
+  const st=ALR.done.get(key)||{};
+  const fire=(lvl,fn)=>{if(!st[lvl]){st[lvl]=1;fn();}};
+  if(dt<=62&&dt>34)fire('60',()=>{beep(1,880);buzz(250);});
+  if(dt<=32&&dt>13)fire('30',()=>{beep(2,988);buzz([200,120,200]);});
+  if(dt<=13&&dt>1)fire('10',()=>{beep(3,1175,.1,.08);buzz([300,100,300,100,300]);
+    for(let s=3;s>=0;s--){const at=te-s*1000-Date.now();if(at>-100)ALR.timers.push(setTimeout(()=>{beep(1,s?1320:1760,s?.07:.6);buzz(s?60:600);},Math.max(0,at)));}});
+  ALR.done.set(key,st);
+  if(!ALR.cur||ALR.cur.key===key||te<ALR.cur.te||ALR.cur.te<Date.now()-5000)ALR.cur={key,te,label,detail};
+  alertBanner();
+}
+function alertBanner(){
+  const b=$('alertBar');clearInterval(ALR.tick);
+  const draw=()=>{const c=ALR.cur;if(!c){b.hidden=true;return;}const dt=(c.te-Date.now())/1000;
+    if(dt<-6){ALR.cur=null;b.hidden=true;clearInterval(ALR.tick);return;}
+    b.hidden=false;b.classList.toggle('now',dt<=3);
+    $('alertCount').textContent=dt>0?`${Math.floor(dt/60)}:${pad(Math.floor(dt%60))}`:'¡AHORA!';
+    $('alertLabel').textContent=c.label;$('alertDetail').textContent=c.detail;};
+  draw();ALR.tick=setInterval(draw,200);
+}
+$('alertClose').onclick=()=>{ALR.cur=null;$('alertBar').hidden=true;};
+$('alTest').onclick=()=>{audioUnlock();const te=Date.now()+12000;ALR.done.delete('test');alertEvent('test',te,'Prueba de aviso','Así sonará: 60 s, 30 s, 10 s y cuenta atrás');};
+
+/* ---- 3 · Trayectorias reales (calibración con aterrizajes medidos) ---- */
+const CAL_KEY='avl-calib-v1',GEOID=50;
+let CALIB={};try{CALIB=JSON.parse(localStorage.getItem(CAL_KEY)||'{}')||{};}catch(e){CALIB={};}
+for(const[ap,ops]of Object.entries(SEED_CAL))for(const[id,bins]of Object.entries(ops)){CALIB[ap]=CALIB[ap]||{};if(!CALIB[ap][id])CALIB[ap][id]={bins:JSON.parse(JSON.stringify(bins)),seen:{},seed:1};}
+function calSave(){try{localStorage.setItem(CAL_KEY,JSON.stringify(CALIB));}catch(e){}}
+function calOp(op){return CALIB[APK]&&CALIB[APK][op.id];}
+function calCount(op){const c=calOp(op);if(!c)return 0;let m=0;for(const b of Object.values(c.bins))m=Math.max(m,b[0]);return m;}
+function calRecord(a,op,s,c){
+  if(typeof a.alt_geom!=='number'||!a.hex)return;const k=Math.floor(s/1000);if(k<0||k>21)return;
+  const C=(CALIB[APK]=CALIB[APK]||{})[op.id]=(CALIB[APK]||{})[op.id]||{bins:{},seen:{}};
+  const key=a.hex+':'+k+':'+Math.floor(Date.now()/3600e3);if(C.seen[key])return;C.seen[key]=1;
+  const h=a.alt_geom*0.3048-GEOID;const v=(a.gs||0)*0.5144;
+  const b=C.bins[k]=C.bins[k]||[0,0,0,0];b[0]++;b[1]+=c;b[2]+=h;b[3]+=v;
+  const ks=Object.keys(C.seen);if(ks.length>4000)for(const x of ks.slice(0,2000))delete C.seen[x];
+  calSave();
+}
+function calProfile(op){
+  const C=calOp(op);if(!C)return null;const pts=[];
+  for(const[k,b]of Object.entries(C.bins))if(b[0]>=3)pts.push({s:+k*1000+500,c:b[1]/b[0],h:b[2]/b[0],v:b[3]/b[0]});
+  if(pts.length<3)return null;pts.sort((a,b)=>a.s-b.s);return pts;
+}
+function interpP(P,s,key){if(s<=P[0].s)return null;if(s>=P[P.length-1].s)return null;for(let i=1;i<P.length;i++)if(s<=P[i].s){const a=P[i-1],b=P[i];if(b.s-a.s>3000)return null;const f=(s-a.s)/(b.s-a.s);return a[key]+(b[key]-a[key])*f;}return null;}
+const PROF_CACHE=new Map();
+let CAL_ON=true;
+function calTable(op){const P=calProfile(op);if(!P)return null;const tb=new Array(221).fill(null);
+  for(let i=0;i<=220;i++){const s=i*100;const h=interpP(P,s,'h');if(h!=null)tb[i]={h,c:interpP(P,s,'c')||0,v:interpP(P,s,'v')};}return tb;}
+CALHOOK=function(op,s){
+  if(!CAL_ON||op.kind!=='arr')return null;
+  const key=APK+op.id;let tb=PROF_CACHE.get(key);if(tb===undefined){tb=calTable(op);PROF_CACHE.set(key,tb);}
+  if(!tb)return null;const i=Math.round(s/100);return i>=0&&i<=220?tb[i]:null;
+};
+function calUI(){
+  PROF_CACHE.clear();const ops=activeOps().filter(o=>o.kind==='arr');
+  const parts=ops.map(o=>{const n=calCount(o);const p=calProfile(o);return`${o.name}: ${p?`<b>${n}</b> aterrizajes medidos`:n?`${n} medidos (faltan datos)`:'sin medir'}`;});
+  $('calInfo').innerHTML=parts.join(' · ')||'Sin operaciones de llegada activas.';
+}
+$('calUse').addEventListener('change',()=>{CAL_ON=$('calUse').checked;PROF_CACHE.clear();if(T){CAL=computeCalendar(T,activeOps(),opts());renderCal();}drawAll();});
+$('calReset').onclick=()=>{if(CALIB[APK])for(const o of activeOps())delete CALIB[APK][o.id];calSave();calUI();PROF_CACHE.clear();drawAll();};
+
+/* ---- 4 · Aterrizajes previstos (horario de AENA) ---- */
+const SCH={data:null,key:null,err:null};
+const AENA_CODE={BCN:'BCN',GRO:'GRO',REU:'REU',ZAZ:'ZAZ'};
+const PASS_OFF=7*60e3; // el avión pasa por tu punto ~7 min antes de la hora de llegada que publica AENA
+function aenaTime(d,h){if(!d||!h||d.length<8)return null;const D=+d.slice(0,2),M=+d.slice(2,4),Y=+d.slice(4,8);const[hh,mm]=h.split(':').map(Number);return madridToMs(Y,M,D,hh,mm);}
+async function schLoad(){
+  const key=APK+':'+Math.floor(Date.now()/(20*60e3));if(SCH.key===key&&SCH.data)return;
+  SCH.key=key;SCH.data=null;SCH.err=null;
+  try{const j=await getJSON(`https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=${AENA_CODE[APK]}&flightType=L&dosDias=si`);
+    const seen=new Set(),out=[];
+    for(const f of j){const ts=aenaTime(f.fecha,f.horaProgramada);if(!ts)continue;const te=aenaTime(f.fechaEstimada,f.horaEstimada)||ts;
+      const k=[f.fecha,f.horaProgramada,f.iataOtro,f.tipoAeronave].join('|');if(seen.has(k))continue;seen.add(k);
+      if(/^(CAN|DES)/i.test(f.estado||''))continue;
+      out.push({ts,t:te,flight:((f.iataCompania||'')+(f.numVuelo||'')).trim(),from:f.ciudadIataOtro||f.iataOtro||'',type:f.tipoAeronave||'',est:f.estado||''});}
+    out.sort((a,b)=>a.t-b.t);SCH.data=out;
+  }catch(e){SCH.err=e;}
+  schFill(document);
+}
+function schFor(t0,t1){
+  const D=SCH.data;if(!D||!D.length)return null;const first=D[0].ts,last=D[D.length-1].ts;
+  const pick=(a,b)=>D.filter(f=>f.t-PASS_OFF>=a&&f.t-PASS_OFF<=b);
+  if(t1+PASS_OFF<=last+3600e3&&t0+PASS_OFF>=first-3600e3)return{list:pick(t0,t1),est:false};
+  // fuera de hoy y mañana: mismo tramo horario del día disponible más parecido (los horarios se repiten casi a diario)
+  for(const dd of[1,2,7,6,8,3,4,5]){for(const sg of[-1,1]){const sh=sg*dd*86400e3;const a=t0+sh,b=t1+sh;
+    if(a+PASS_OFF>=first&&b+PASS_OFF<=last)return{list:pick(a,b).map(f=>({...f,t:f.t-sh})),est:true};}}
+  return null;
+}
+function schHTML(t0,t1){
+  if(SCH.err)return'<span class="chip">Horarios AENA no disponibles</span>';
+  if(!SCH.data)return'<span class="chip">Cargando horarios…</span>';
+  const r=schFor(t0-3*60e3,t1+3*60e3);if(!r)return'<span class="chip">Sin horario para esa fecha</span>';
+  const n=r.list.length;const cls=n>=3?'good':n>=1?'mid':'bad';
+  const items=r.list.slice(0,6).map(f=>`${hm(f.t-PASS_OFF)} ${f.flight} ${f.type}${f.from?' ('+f.from+')':''}`).join(' · ');
+  return`<span class="chip wx-${cls}">✈ ${r.est?'≈ ':''}${n} aterrizaje${n===1?'':'s'} previsto${n===1?'':'s'}</span>${n?`<span class="chip sch">${items}${n>6?' …':''}</span>`:''}${r.est?'<span class="chip">según el horario de un día parecido</span>':''}`;
+}
+function schFill(root){(root||document).querySelectorAll('.sch-slot').forEach(el=>{el.innerHTML=schHTML(+el.dataset.a,+el.dataset.b);});}
+
+/* ---- 2 · Aviones en crucero por delante de la Luna ---- */
+const CRU={on:false,timer:null,ac:[],res:[],src:'',layer:null,obs:null,fast:false};
+function ecef(lat,lon,h){const a=6378137,e2=6.69437999014e-3,s=Math.sin(lat*D2R),c=Math.cos(lat*D2R),N=a/Math.sqrt(1-e2*s*s);return[(N+h)*c*Math.cos(lon*D2R),(N+h)*c*Math.sin(lon*D2R),(N*(1-e2)+h)*s];}
+function enuOf(o,p){const dx=p[0]-o.X[0],dy=p[1]-o.X[1],dz=p[2]-o.X[2],sl=Math.sin(o.lat*D2R),cl=Math.cos(o.lat*D2R),so=Math.sin(o.lon*D2R),co=Math.cos(o.lon*D2R);
+  return[-so*dx+co*dy,-sl*co*dx-sl*so*dy+cl*dz,cl*co*dx+cl*so*dy+sl*dz];}
+function dirAzAlt(az,alt){const a=az*D2R,e=alt*D2R;return[Math.sin(a)*Math.cos(e),Math.cos(a)*Math.cos(e),Math.sin(e)];}
+const vlen=v=>Math.hypot(v[0],v[1],v[2]);
+const ang=(a,b)=>Math.acos(Math.max(-1,Math.min(1,(a[0]*b[0]+a[1]*b[1]+a[2]*b[2])/(vlen(a)*vlen(b)))));
+function cruObserver(){const[la,lo]=ll(myPt[0],myPt[1]);const h=(myH||0)+GEOID;return{lat:la,lon:lo,h,X:ecef(la,lo,h),A:new Astronomy.Observer(la,lo,myH||0)};}
+function bodyFrom(o,ms){const d=new Date(ms);const sun=TARGET==='sun';const eq=Astronomy.Equator(sun?Astronomy.Body.Sun:Astronomy.Body.Moon,d,o.A,true,true);const h=Astronomy.Horizon(d,o.A,eq.ra,eq.dec,'normal');return{az:h.azimuth,alt:h.altitude,sd:Math.asin((sun?696000:1737.4)/(eq.dist*AU_KM))};}
+async function cruFetch(o,nm){
+  const srcs=[['adsb.lol',`https://api.adsb.lol/v2/lat/${o.lat.toFixed(4)}/lon/${o.lon.toFixed(4)}/dist/${nm}`],['airplanes.live',`https://api.airplanes.live/v2/point/${o.lat.toFixed(4)}/${o.lon.toFixed(4)}/${nm}`]];
+  for(const[n,u]of srcs){try{const j=await getJSON(u);CRU.ac=j.ac||[];CRU.src=n;CRU.now=j.now?(j.now>1e12?j.now:j.now*1000):Date.now();return true;}catch(e){}}
+  return false;
+}
+function cruPredict(o){
+  const t0=Date.now(),H=600,step=2;const m0=bodyFrom(o,t0),m1=bodyFrom(o,t0+H*1000);if(m0.alt<4)return{low:true,m0};
+  const res=[];
+  for(const a of CRU.ac){
+    if(a.lat==null||a.lon==null||!a.gs||a.gs<150)continue;
+    const altft=typeof a.alt_geom==='number'?a.alt_geom:(typeof a.alt_baro==='number'?a.alt_baro+160:null);if(altft==null||altft<3000)continue;
+    const age=(t0-CRU.now)/1000+(a.seen_pos||0);const v=a.gs*0.5144,tr=(a.track||0)*D2R,vr=((a.geom_rate??a.baro_rate)||0)*0.3048/60;
+    let best=null,bestG=null;const P=[];
+    for(let t=-10;t<=H;t+=step){const tt=t+age;const dN=v*Math.cos(tr)*tt,dE=v*Math.sin(tr)*tt;
+      const lat=a.lat+dN/111320,lon=a.lon+dE/(111320*Math.cos(a.lat*D2R));let h=altft*0.3048+vr*Math.min(tt,240);if(h<300)break;
+      const p=enuOf(o,ecef(lat,lon,h));if(p[2]<=0)continue;const f=(t+10)/(H+10);
+      const az=m0.az+(((m1.az-m0.az+540)%360)-180)*f,al=m0.alt+(m1.alt-m0.alt)*f;const M=dirAzAlt(az,al);
+      const s=p[2]/M[2];const G=[p[0]-s*M[0],p[1]-s*M[1]];const gd=Math.hypot(G[0],G[1]);
+      P.push({t,G,p});
+      if(!bestG||gd<bestG.gd)bestG={t,gd,G,p,M,sd:m0.sd+(m1.sd-m0.sd)*f,al};}
+    if(!bestG||bestG.gd>9000||bestG.t<-6)continue;
+    const sep=ang(bestG.p,bestG.M),slant=vlen(bestG.p);
+    const i=P.findIndex(x=>x.t===bestG.t),pa=P[Math.max(0,i-1)].p,pb=P[Math.min(P.length-1,i+1)].p;const dtp=(P[Math.min(P.length-1,i+1)].t-P[Math.max(0,i-1)].t)||1;
+    const w=ang(pa,pb)/dtp;const dur=w>0?2*bestG.sd/w:0;
+    const len=TYPELEN[(a.t||'').toUpperCase()]||37.6;
+    const halfw=bestG.sd*slant/Math.max(.2,Math.sin(bestG.al*D2R)); // semiancho de la franja sobre el suelo (aprox.)
+    res.push({a,te:t0+bestG.t*1000,G:bestG.G,gd:bestG.gd,hit:sep<bestG.sd,sep,sd:bestG.sd,slant,dur,ratio:len/(slant*2*bestG.sd),alt:altft,path:P.filter(x=>Math.abs(x.t-bestG.t)<=90),halfw});
+  }
+  res.sort((x,y)=>x.te-y.te);return{res,m0};
+}
+function brg(G){return(Math.atan2(G[0],G[1])*R2D+360)%360;}
+function cruRender(){
+  const o=CRU.obs;const r=cruPredict(o);const LS=$('cruList');
+  if(CRU.layer)CRU.layer.clearLayers();
+  if(r.low){LS.innerHTML=`<div class="empty">${TN()==='Sol'?'El Sol':'La Luna'} está demasiado baja ahora (${fmt(r.m0.alt,1)}°). Hacen falta al menos 4°.</div>`;return;}
+  const toLL=(E,N)=>[o.lat+N/111320,o.lon+E/(111320*Math.cos(o.lat*D2R))];
+  CRU.res=r.res;CRU.fast=r.res.some(e=>e.te-Date.now()<90e3&&e.gd<3000);
+  LS.innerHTML=r.res.length?r.res.slice(0,12).map((e,k)=>{const dt=(e.te-Date.now())/1000;const inside=e.gd<=e.halfw;
+    const mv=inside?'<b style="color:var(--ok)">estás dentro de la franja</b>':`muévete <b>${e.gd<1000?fmt(e.gd)+' m':fmt(e.gd/1000,1)+' km'}</b> hacia el <b>${azName(brg(e.G))}</b>`;
+    return`<div class="liverow" style="--c:${inside?'var(--ok)':e.gd<1500?'var(--warn)':'var(--line)'}"><b>${(e.a.flight||e.a.hex||'').trim()||'—'}</b> <span class="chip">${e.a.t||'tipo ?'}</span> ${fmt(e.alt*0.3048)} m · ${fmt(e.a.gs)} kt<br>
+      ${dt>0?`cruza en <b>${Math.floor(dt/60)}:${pad(Math.floor(dt%60))}</b> (${hms(e.te)})`:'cruzando ahora'} · ${mv} · tamaño avión/${TN()} ${fmt(e.ratio,2)} · dura ${fmt(e.dur,1)} s
+      <br><button class="mini" data-k="${k}">Ir a la franja</button></div>`;}).join(''):`<div class="empty">${CRU.ac.length} aviones en el radio (${CRU.src}); ninguno pasará por delante en los próximos 10 minutos cerca de ti.</div>`;
+  LS.querySelectorAll('button.mini').forEach(bt=>bt.onclick=()=>{const e=CRU.res[+bt.dataset.k];const[la,lo]=toLL(e.G[0],e.G[1]);fieldGo(la,lo,`Franja de ${(e.a.flight||'').trim()} · ${hms(e.te)}`);map.setView([la,lo],15);});
+  for(const e of r.res.slice(0,12)){if(e.gd>6000)continue;const col=e.gd<=e.halfw?'#7fd49b':'#f2c14e';
+    L.polyline(e.path.map(x=>toLL(x.G[0],x.G[1])),{color:col,weight:Math.max(2,Math.min(14,e.halfw/12)),opacity:.55}).bindTooltip(`${(e.a.flight||'').trim()} · ${hms(e.te)} · franja de ±${fmt(e.halfw)} m`).addTo(CRU.layer);
+    const[la,lo]=toLL(e.G[0],e.G[1]);L.circleMarker([la,lo],{radius:4,color:col,fillColor:col,fillOpacity:1}).addTo(CRU.layer);
+    if(e.gd<=e.halfw)alertEvent('c'+e.a.hex,e.te,`${(e.a.flight||'').trim()} ${e.a.t||''} en crucero`,`a ${fmt(e.alt*0.3048)} m · dura ${fmt(e.dur,1)} s · avión/${TN()} ${fmt(e.ratio,2)}`);}
+  $('cruSt').textContent=`${CRU.src} · ${hms(Date.now())}`;
+}
+async function cruTick(){
+  if(!CRU.on)return;CRU.obs=cruObserver();const m=bodyFrom(CRU.obs,Date.now());
+  const reach=m.alt>3?Math.min(250,((12500-(myH||0))/Math.tan(m.alt*D2R))/1852+25):60;
+  const ok=await cruFetch(CRU.obs,Math.round(reach));
+  if(!ok)$('cruList').innerHTML=`<div class="empty">No se han podido leer los datos ADS-B. ${NETMSG}</div>`;else cruRender();
+  CRU.timer=setTimeout(cruTick,CRU.fast?4000:10000);
+}
+$('cruBtn').onclick=()=>{CRU.on=!CRU.on;$('cruBtn').textContent=CRU.on?'Desactivar':'Activar';clearTimeout(CRU.timer);
+  if(CRU.on){audioUnlock();keepAwake(true);if($('cruGps').checked)geoStart('cru');if(!CRU.layer)CRU.layer=L.layerGroup().addTo(map);$('cruList').innerHTML='<div class="empty">Buscando aviones…</div>';setTime(Date.now());cruTick();}
+  else{geoStop('cru');if(CRU.layer)CRU.layer.clearLayers();$('cruList').innerHTML='';$('cruSt').textContent='';keepAwake(false);}};
+$('cruGps').addEventListener('change',()=>{if(!CRU.on)return;if($('cruGps').checked)geoStart('cru');else geoStop('cru');});
+
+/* ---- 5 · Modo campo: GPS, brújula y cámara ---- */
+const FIELD={on:false,dest:null,head:null,devAz:null,devAlt:null,arrived:false,cam:false,stream:null,raf:null};
+function fieldGo(lat,lon,label){FIELD.dest={lat,lon,label};FIELD.arrived=false;$('fieldDest').textContent=label;if(typeof fieldMarker!=='undefined'){fieldMarker.setLatLng([lat,lon]).addTo(map);}fieldRender();
+  $('fieldBox').scrollIntoView({behavior:'smooth',block:'nearest'});}
+window.fieldGoBest=()=>{const m=moonAt(curT());const o=opts();for(const op of activeOps()){const b=locus(op,m,o.hO,o.len,200).best;if(b){const[la,lo]=ll(b.ox,b.oy);fieldGo(la,lo,`Mejor punto · ${op.name} · ${hm(curT())}`);return;}}$('fieldDest').textContent='No hay punto accesible a esta hora.';};
+const fieldMarker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div style="width:18px;height:18px;border-radius:50%;background:#7fd49b;border:3px solid #fff;box-shadow:0 0 0 2px #000a"></div>',iconSize:[18,18],iconAnchor:[9,9]})});
+function hav(a1,o1,a2,o2){const R=6371000,p1=a1*D2R,p2=a2*D2R,dp=(a2-a1)*D2R,dl=(o2-o1)*D2R;const h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+function bearingTo(a1,o1,a2,o2){const p1=a1*D2R,p2=a2*D2R,dl=(o2-o1)*D2R;return(Math.atan2(Math.sin(dl)*Math.cos(p2),Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl))*R2D+360)%360;}
+function fieldRender(){
+  const g=GEO.last,d=FIELD.dest;const m=moonAt(Date.now());
+  $('fMoon').textContent=m.alt>0?`${TN()} a ${fmt(m.az)}° ${azName(m.az)} · ${fmt(m.alt,1)}° de altura`:`${TN()} bajo el horizonte`;
+  if(!g){$('fDist').textContent='—';$('fInfo').textContent=FIELD.on?'Esperando señal GPS…':'Pulsa «Iniciar» para usar el GPS.';return;}
+  $('fAcc').textContent=`GPS ±${Math.round(g.accuracy||0)} m`;
+  if(!d){$('fDist').textContent='—';$('fInfo').textContent='Elige un destino: «Mejor punto ahora», «Ir a la franja» en crucero o «Llévame aquí» en el mapa.';return;}
+  const dist=hav(g.latitude,g.longitude,d.lat,d.lon),b=bearingTo(g.latitude,g.longitude,d.lat,d.lon);
+  $('fDist').textContent=dist<1000?`${Math.round(dist)} m`:`${fmt(dist/1000,2)} km`;
+  const rel=FIELD.head!=null?((b-FIELD.head+360)%360):b;$('fArrow').style.transform=`rotate(${rel}deg)`;
+  $('fMoonArrow').style.transform=`rotate(${FIELD.head!=null?((m.az-FIELD.head+360)%360):m.az}deg)`;
+  $('fInfo').textContent=dist<=Math.max(15,(g.accuracy||10))?'✓ Estás en el punto. Mira hacia la Luna y prepara la ráfaga.':`Camina hacia el ${azName(b)} (${fmt(b)}°)${FIELD.head==null?' · sin brújula: la flecha indica el rumbo respecto al norte':''}.`;
+  if(dist<=Math.max(15,(g.accuracy||10))&&!FIELD.arrived){FIELD.arrived=true;beep(2,1320);buzz([150,80,150]);}
+  if(dist>40)FIELD.arrived=false;
+}
+function onOrient(e){
+  let head=null;if(typeof e.webkitCompassHeading==='number')head=e.webkitCompassHeading;else if(e.absolute&&e.alpha!=null)head=(360-e.alpha)%360;
+  if(head!=null){FIELD.head=head;}
+  if(e.alpha!=null&&e.beta!=null&&e.gamma!=null&&(e.absolute||typeof e.webkitCompassHeading==='number')){
+    const al=(typeof e.webkitCompassHeading==='number'?(360-e.webkitCompassHeading):e.alpha)*D2R,be=e.beta*D2R,ga=e.gamma*D2R;
+    // dirección de la cámara trasera (eje -Z del móvil) en coordenadas este-norte-arriba
+    const ca=Math.cos(al),sa=Math.sin(al),cb=Math.cos(be),sb=Math.sin(be),cg=Math.cos(ga),sg=Math.sin(ga);
+    const x=-(ca*sg+sa*sb*cg),y=-(sa*sg-ca*sb*cg),z=-(cb*cg);
+    FIELD.devAz=(Math.atan2(x,y)*R2D+360)%360;FIELD.devAlt=Math.asin(Math.max(-1,Math.min(1,z)))*R2D;
+  }
+  if(FIELD.on)fieldRender();
+}
+async function fieldStart(){
+  FIELD.on=true;$('fieldBtn').textContent='Detener';audioUnlock();keepAwake(true);geoStart('field');
+  try{if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission)await DeviceOrientationEvent.requestPermission();}catch(e){}
+  window.addEventListener('deviceorientationabsolute',onOrient,true);window.addEventListener('deviceorientation',onOrient,true);
+  if(!fieldMarker._map&&FIELD.dest)fieldMarker.addTo(map);
+  if(!FIELD.dest)fieldGoBest();fieldRender();$('fieldView').hidden=false;
+}
+function fieldStop(){FIELD.on=false;$('fieldBtn').textContent='Iniciar';geoStop('field');window.removeEventListener('deviceorientationabsolute',onOrient,true);window.removeEventListener('deviceorientation',onOrient,true);camStop();keepAwake(false);}
+$('fieldBtn').onclick=()=>FIELD.on?fieldStop():fieldStart();
+$('fieldBest').onclick=()=>fieldGoBest();
+async function camStart(){
+  try{FIELD.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});}catch(e){$('fInfo').textContent='No se ha podido abrir la cámara: concede el permiso de cámara a la app.';return;}
+  const v=$('camVideo');v.srcObject=FIELD.stream;await v.play().catch(()=>{});$('camWrap').hidden=false;FIELD.cam=true;$('camBtn').textContent='Cerrar cámara';camLoop();
+}
+function camStop(){FIELD.cam=false;cancelAnimationFrame(FIELD.raf);if(FIELD.stream){FIELD.stream.getTracks().forEach(t=>t.stop());FIELD.stream=null;}$('camWrap').hidden=true;$('camBtn').textContent='Cámara con la Luna';}
+$('camBtn').onclick=()=>FIELD.cam?camStop():camStart();
+function camLoop(){
+  if(!FIELD.cam)return;const cv=$('camCv'),v=$('camVideo');const W=cv.clientWidth,H=cv.clientHeight,dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const m=moonAt(Date.now());const hf=60,vf=hf*H/W;
+  ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(W/2-14,H/2);ctx.lineTo(W/2+14,H/2);ctx.moveTo(W/2,H/2-14);ctx.lineTo(W/2,H/2+14);ctx.stroke();
+  ctx.font='13px "IBM Plex Sans",sans-serif';ctx.fillStyle='#fff';
+  if(FIELD.devAz==null){ctx.fillText('Sin brújula: no puedo situar la Luna en la imagen',12,22);}
+  else{const da=((m.az-FIELD.devAz+540)%360)-180,de=m.alt-FIELD.devAlt;const x=W/2+da/hf*W,y=H/2-de/vf*H;
+    const r=Math.max(8,(2*m.sd)/hf*W/2);
+    if(x>-r&&x<W+r&&y>-r&&y<H+r){ctx.strokeStyle='#ffd27a';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,r+6,0,7);ctx.stroke();ctx.fillStyle='#ffd27a';ctx.fillText(TN(),x+r+10,y+4);}
+    else{const a=Math.atan2(-(y-H/2),x-W/2);const ex=W/2+Math.cos(a)*(Math.min(W,H)/2-30),ey=H/2-Math.sin(a)*(Math.min(W,H)/2-30);
+      ctx.save();ctx.translate(ex,ey);ctx.rotate(-a);ctx.fillStyle='#ffd27a';ctx.beginPath();ctx.moveTo(18,0);ctx.lineTo(-8,-10);ctx.lineTo(-8,10);ctx.closePath();ctx.fill();ctx.restore();
+      ctx.fillStyle='#fff';ctx.fillText(`${TN()}: gira ${da>0?'a la derecha':'a la izquierda'} ${fmt(Math.abs(da))}° y ${de>0?'sube':'baja'} ${fmt(Math.abs(de))}°`,12,H-14);}
+    ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(0,0,W,24);ctx.fillStyle='#fff';ctx.fillText(`Apuntas a ${fmt(FIELD.devAz)}° ${azName(FIELD.devAz)} · ${fmt(FIELD.devAlt,1)}°   ${TN()}: ${fmt(m.az)}° · ${fmt(m.alt,1)}°`,10,17);}
+  FIELD.raf=requestAnimationFrame(camLoop);
+}
+
+/* ---- Integración con lo existente ---- */
+// los avisos de «Aviones en directo»
+{const _lr=liveRender;liveRender=function(){_lr.apply(this,arguments);try{const L2=liveAnalyze();LIVE.fast=L2.some(e=>e.hit&&e.eta>0&&e.eta<90);
+  for(const e of L2)if(e.hit)alertEvent(e.a.hex+e.op.id,e.te,`${(e.a.flight||e.a.hex||'').trim()} ${e.a.t||''} · ${e.op.name}`,`a ${fmt(e.alt)} ft · avión/${TN()} ${fmt(e.ratio,2)}`);}catch(err){}};}
+// tarjetas: aterrizajes previstos
+{const _rc=renderCal;renderCal=function(){_rc.apply(this,arguments);try{
+  document.querySelectorAll('#calList .win').forEach(el=>{const w=CAL[+el.dataset.k];if(!w)return;const a=T.t0+w.i0*T.step,b=T.t0+w.i1*T.step+T.step;
+    const d=document.createElement('div');d.className='wx2 sch-slot';d.dataset.a=a;d.dataset.b=b;el.lastElementChild.appendChild(d);});
+  schFill(document);calUI();schLoad();}catch(err){}};}
+// los popups de mejor punto y puntos recomendados: «Llévame aquí»
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('[data-go]');if(!a)return;e.preventDefault();const[la,lo]=a.dataset.go.split(',').map(Number);fieldGo(la,lo,a.dataset.label||'Punto elegido');if(!FIELD.on)fieldStart();},true);
+$('apt').addEventListener('change',()=>{PROF_CACHE.clear();calUI();});
+$('liveBtn').addEventListener('click',()=>{audioUnlock();keepAwake(LIVE.on);});
+calUI();
 
 setTargetUI();
 
