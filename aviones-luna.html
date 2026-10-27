@@ -1522,7 +1522,7 @@ function simInit(){
 simInit();
 
 /* ===== Utilidades de red y archivos ===== */
-async function getJSON(url,opt){const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);try{const r=await fetch(typeof proxify==='function'?proxify(url):url,{...(opt||{}),signal:ctl.signal});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}finally{clearTimeout(to);}}
+async function getJSON(url,opt){opt=opt||{};const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),opt.timeout||15000);const{timeout,...fo}=opt;try{const r=await fetch(typeof proxify==='function'?proxify(url):url,{...fo,signal:ctl.signal});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}finally{clearTimeout(to);}}
 async function saveFile(name,mime,text){
   try{const dl=await window.claude?.use?.('downloads');if(dl){await dl.save({filename:name,data:new Blob([text],{type:mime})});return true;}}catch(e){}
   try{const u=URL.createObjectURL(new Blob([text],{type:mime}));const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);return true;}catch(e){return false;}
@@ -1914,14 +1914,14 @@ function aenaTime(d,h){if(!d||!h||d.length<8)return null;const D=+d.slice(0,2),M
 async function schLoad(){
   const key=APK+':'+Math.floor(Date.now()/(20*60e3));if(SCH.key===key&&SCH.data)return;
   SCH.key=key;SCH.data=null;SCH.err=null;
-  try{const j=await getJSON(`https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=${AENA_CODE[APK]}&flightType=L&dosDias=si`);
+  try{const j=await getJSON(`https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=${AENA_CODE[APK]}&flightType=L&dosDias=si`,{timeout:60000});
     const seen=new Set(),out=[];
     for(const f of j){const ts=aenaTime(f.fecha,f.horaProgramada);if(!ts)continue;const te=aenaTime(f.fechaEstimada,f.horaEstimada)||ts;
       const k=[f.fecha,f.horaProgramada,f.iataOtro,f.tipoAeronave].join('|');if(seen.has(k))continue;seen.add(k);
       if(/^(CAN|DES)/i.test(f.estado||''))continue;
       out.push({ts,t:te,flight:((f.iataCompania||'')+(f.numVuelo||'')).trim(),from:f.ciudadIataOtro||f.iataOtro||'',type:f.tipoAeronave||'',est:f.estado||''});}
     out.sort((a,b)=>a.t-b.t);SCH.data=out;
-  }catch(e){SCH.err=e;}
+  }catch(e){SCH.err=e;SCH.key=null;setTimeout(()=>{if(!SCH.data)schLoad();},60e3);}
   schFill(document);
 }
 function schFor(t0,t1){
