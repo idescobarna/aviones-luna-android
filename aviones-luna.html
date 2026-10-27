@@ -1910,13 +1910,13 @@ $('calReset').onclick=()=>{if(CALIB[APK])for(const o of activeOps())delete CALIB
 const SCH={data:null,key:null,err:null};
 const AENA_CODE={BCN:'BCN',GRO:'GRO',REU:'REU',ZAZ:'ZAZ'};
 const PASS_OFF=7*60e3; // el avión pasa por tu punto ~7 min antes de la hora de llegada que publica AENA
-function aenaTime(d,h){if(!d||!h||d.length<8)return null;const D=+d.slice(0,2),M=+d.slice(2,4),Y=+d.slice(4,8);const[hh,mm]=h.split(':').map(Number);return madridToMs(Y,M,D,hh,mm);}
+function aenaTime(d,h){if(!d||!h)return null;const q=String(d).replace(/\D/g,'');if(q.length<8)return null;const D=+q.slice(0,2),M=+q.slice(2,4),Y=+q.slice(4,8);const[hh,mm]=String(h).split(':').map(Number);if(!(D>=1&&D<=31&&M>=1&&M<=12&&Y>2000&&hh>=0&&hh<24&&mm>=0&&mm<60))return null;try{return madridToMs(Y,M,D,hh,mm);}catch(e){return null;}}
 async function schLoad(){
   const key=APK+':'+Math.floor(Date.now()/(20*60e3));if(SCH.key===key&&SCH.data)return;
   SCH.key=key;SCH.data=null;SCH.err=null;
   try{const j=await getJSON(`https://www.aena.es/sites/Satellite?pagename=AENA_ConsultarVuelos&airport=${AENA_CODE[APK]}&flightType=L&dosDias=si&_=${Date.now()}`,{timeout:60000});
     const seen=new Set(),out=[];
-    for(const f of j){const ts=aenaTime(f.fecha,f.horaProgramada);if(!ts)continue;const te=aenaTime(f.fechaEstimada,f.horaEstimada)||ts;
+    for(const f of j){const ts=aenaTime(f.fecha,f.horaProgramada);if(!ts)continue;let te=aenaTime(f.fechaEstimada,f.horaEstimada)||ts;if(Math.abs(te-ts)>4*3600e3)te=ts;
       const k=[f.fecha,f.horaProgramada,f.iataOtro,f.tipoAeronave].join('|');if(seen.has(k))continue;seen.add(k);
       if(/^(CAN|DES)/i.test(f.estado||''))continue;
       out.push({ts,t:te,flight:((f.iataCompania||'')+(f.numVuelo||'')).trim(),from:f.ciudadIataOtro||f.iataOtro||'',type:f.tipoAeronave||'',est:f.estado||''});}
